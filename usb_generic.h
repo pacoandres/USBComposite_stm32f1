@@ -12,8 +12,19 @@ typedef unsigned char u8;
 
 #define USB_CONTROL_DONE 1
 
+// NOTE: MAX_USB_DESCRIPTOR_DATA_SIZE needs to be sufficiently large
+//	to handle full configurable range of usb_midi_device ports so that
+//	all USARTS (even on the larger STM32F103VG targets) can be turned
+//	into MIDI interfaces.  Three ports alone, as on the STM32F103Cx
+//	needs at least 198 bytes just for the MIDI descriptors and more
+//	if you plan to use other USB things with it, like mass storage or
+//	a standard serial interface.
+//	The MAX_USB_DESCRIPTOR_DATA_SIZE buffer of usb_descriptor_config
+//	should really be dynamic to avoid memory waste...
+//	... but for now... just make it sufficiently big...
+
 #define PMA_MEMORY_SIZE 512
-#define MAX_USB_DESCRIPTOR_DATA_SIZE 200
+#define MAX_USB_DESCRIPTOR_DATA_SIZE 500
 #define USB_MAX_STRING_DESCRIPTOR_LENGTH 32
 
 #define USB_EP0_BUFFER_SIZE       0x40
