@@ -49,6 +49,11 @@
 #include <libmaple/usb.h>
 #include "usb_generic.h"
 
+// TODO : Rework this to use any of the multiple ports
+//	of CMIDIDevices.  But in the meantime, just default
+//	to port 0 which must always exist and will be consistent
+//	with old functionality:
+#define midiport g_MIDIDevices.port(0)
 
 /*
  * USBMIDI interface
@@ -62,8 +67,8 @@ void USBMIDI::setChannel(unsigned int channel) {
 }
 
 bool USBMIDI::init(USBMIDI* me) {
-    usb_midi_setTXEPSize(me->txPacketSize);
-    usb_midi_setRXEPSize(me->rxPacketSize);
+	midiport.usb_midi_setTXEPSize(me->txPacketSize);
+	midiport.usb_midi_setRXEPSize(me->rxPacketSize);
 	return true;
 }
 
@@ -107,7 +112,7 @@ void USBMIDI::writePackets(const void *buf, uint32 len) {
     uint32 sent = 0;
 
     while (txed < len && (millis() - start < USB_TIMEOUT)) {
-        sent = usb_midi_tx((const uint32*)buf + txed, len - txed);
+        sent = midiport.usb_midi_tx((const uint32*)buf + txed, len - txed);
         txed += sent;
         if (old_txed != txed) {
             start = millis();
@@ -116,16 +121,16 @@ void USBMIDI::writePackets(const void *buf, uint32 len) {
     }
 
 
-    if (sent == usb_midi_txEPSize) {
-        while (usb_midi_is_transmitting() != 0) {
+    if (sent == midiport.usb_midi_txEPSize()) {
+        while (midiport.usb_midi_is_transmitting() != 0) {
         }
         /* flush out to avoid having the pc wait for more data */
-        usb_midi_tx(NULL, 0);
+        midiport.usb_midi_tx(NULL, 0);
     }
 }
 
 uint32 USBMIDI::available(void) {
-    return usb_midi_data_available();
+    return midiport.usb_midi_data_available();
 }
 
 uint32 USBMIDI::readPackets(void *buf, uint32 len) {
@@ -135,7 +140,7 @@ uint32 USBMIDI::readPackets(void *buf, uint32 len) {
 
     uint32 rxed = 0;
     while (rxed < len) {
-        rxed += usb_midi_rx((uint32*)buf + rxed, len - rxed);
+        rxed += midiport.usb_midi_rx((uint32*)buf + rxed, len - rxed);
     }
 
     return rxed;
@@ -149,7 +154,7 @@ uint32 USBMIDI::readPacket(void) {
 }
 
 uint8 USBMIDI::pending(void) {
-    return usb_midi_get_pending();
+    return midiport.usb_midi_get_pending();
 }
 
 uint8 USBMIDI::isConnected(void) {
