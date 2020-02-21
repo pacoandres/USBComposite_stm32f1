@@ -43,10 +43,6 @@
 extern "C" {
 #endif
 
-#ifndef NUM_MIDI_PORTS
-#define NUM_MIDI_PORTS 1
-#endif
-
 extern USBCompositePart usbMIDIPart;
 
 typedef union {
@@ -167,18 +163,15 @@ typedef struct {
 
 #define SYSEX_BUFFER_LENGTH 256
 
-
- /*
- * MIDI interface
- */
-
-extern uint32_t usb_midi_txEPSize;
-
 #ifdef __cplusplus
 }
 #endif
 
 #ifdef __cplusplus
+
+/*
+* MIDI interface
+*/
 
 #define MIDI_ENDPOINT_OFFSET_RX 0
 #define MIDI_ENDPOINT_OFFSET_TX 1
@@ -227,12 +220,12 @@ public:
 			USBEndpointInfo *pEndpoint = &dev.m_pEndpoints[MIDI_ENDPOINT_OFFSET_RX];
 
 			usb_generic_pause_rx(pEndpoint);
-			dev.n_unread_packets = usb_get_ep_rx_count(pEndpoint->address) / 4;
+			dev.n_unread_packets = usb_get_ep_rx_count(pEndpoint->address) / sizeof(uint32_t);
 			/* This copy won't overwrite unread bytes, since we've set the RX
 			 * endpoint to NAK, and will only set it to VALID when all bytes
 			 * have been read. */
 
-			usb_copy_from_pma_ptr((uint8_t*)dev.midiBufferRx, dev.n_unread_packets * 4,
+			usb_copy_from_pma_ptr((uint8_t*)dev.midiBufferRx, dev.n_unread_packets * sizeof(uint32_t),
 							  (uint32_t*)pEndpoint->pma);
 
 			// discard volatile
@@ -256,11 +249,11 @@ public:
 		/* I/O state */
 
 		/* Received data */
-		volatile uint32_t midiBufferRx[64/4];
+		volatile uint32_t midiBufferRx[64/sizeof(uint32_t)];
 		/* Read index into midiBufferRx */
 		volatile uint32_t rx_offset = 0;
 		/* Transmit data */
-		volatile uint32_t midiBufferTx[64/4];
+		volatile uint32_t midiBufferTx[64/sizeof(uint32_t)];
 		/* Write index into midiBufferTx */
 		volatile uint32_t tx_offset = 0;
 		/* Number of bytes left to transmit */
@@ -277,6 +270,10 @@ public:
 	};
 
 	CMIDIDevices();
+	CMIDIDevices(const CMIDIDevices &) = delete;				// No Copy Constructor
+	CMIDIDevices & operator=(const CMIDIDevices &) = delete;	// No Assignment
+	CMIDIDevices(CMIDIDevices &&) = delete;						// No Move Constructor
+	CMIDIDevices & operator=(CMIDIDevices &&) = delete;			// No Move Assigment
 
 	static void usbMIDIReset(void);
 	static void getMIDIPartDescriptor(uint8* out);
@@ -287,7 +284,22 @@ public:
 	}
 
 private:
+#ifndef NUM_MIDI_PORTS
+#define NUM_MIDI_PORTS 1
+#endif
+
 	static CMIDIDevice m_ports[NUM_MIDI_PORTS];
+
+	template<int nIndex>
+	void init_callbacks()
+	{
+		init_callbacks<nIndex-1>();
+		marr_midiDataTxCb[nIndex] = &CMIDIDevice::template midiDataTxCb<nIndex>;
+		marr_midiDataRxCb[nIndex] = &CMIDIDevice::template midiDataRxCb<nIndex>;
+	}
+
+	void (*marr_midiDataTxCb[NUM_MIDI_PORTS])(void);
+	void (*marr_midiDataRxCb[NUM_MIDI_PORTS])(void);
 
 public:
 	static constexpr int MIDI_PORT_COUNT = NUM_MIDI_PORTS;

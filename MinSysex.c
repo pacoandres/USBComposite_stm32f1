@@ -43,6 +43,11 @@
 #include <MinSysex.h>
 //#include <wirish/wirish.h>
 
+// This is broken until it can be updated for the multiple MIDI interfaces
+//	Though SysEx processing has no business in that intermediate layer anyway
+//	so this whole thing needs to get reworked.  But this extern will keep the
+//	compiler happy in the meantime:
+extern uint32_t usb_midi_txEPSize;
 
 #define MAX_SYSEX_SIZE 256
 

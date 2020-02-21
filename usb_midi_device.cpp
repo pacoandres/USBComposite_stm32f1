@@ -280,64 +280,29 @@ USBCompositePart usbMIDIPart = {
 
 // ------------------------------------------------------------------------------------------------
 
+template<>
+void CMIDIDevices::init_callbacks<0>()
+{
+	marr_midiDataTxCb[0] = &CMIDIDevice::midiDataTxCb<0>;
+	marr_midiDataRxCb[0] = &CMIDIDevice::midiDataRxCb<0>;
+}
+
 CMIDIDevices::CMIDIDevices()
 {
-	void (* arrRxCallbacks[MIDI_PORT_COUNT])(void) = {
-		&CMIDIDevices::CMIDIDevice::midiDataRxCb<0>,
-#if (NUM_MIDI_PORTS >= 2)
-		&CMIDIDevices::CMIDIDevice::midiDataRxCb<1>,
-#endif
-#if (NUM_MIDI_PORTS >= 3)
-		&CMIDIDevices::CMIDIDevice::midiDataRxCb<2>,
-#endif
-#if (NUM_MIDI_PORTS >= 4)
-		&CMIDIDevices::CMIDIDevice::midiDataRxCb<3>,
-#endif
-#if (NUM_MIDI_PORTS >= 5)
-		&CMIDIDevices::CMIDIDevice::midiDataRxCb<4>,
-#endif
-#if (NUM_MIDI_PORTS >= 6)
-		&CMIDIDevices::CMIDIDevice::midiDataRxCb<5>,
-#endif
-#if (NUM_MIDI_PORTS >= 7)
-		&CMIDIDevices::CMIDIDevice::midiDataRxCb<6>,
-#endif
-	};
-
-	void (* arrTxCallbacks[MIDI_PORT_COUNT])(void) = {
-		&CMIDIDevices::CMIDIDevice::midiDataTxCb<0>,
-#if (NUM_MIDI_PORTS >= 2)
-		&CMIDIDevices::CMIDIDevice::midiDataTxCb<1>,
-#endif
-#if (NUM_MIDI_PORTS >= 3)
-		&CMIDIDevices::CMIDIDevice::midiDataTxCb<2>,
-#endif
-#if (NUM_MIDI_PORTS >= 4)
-		&CMIDIDevices::CMIDIDevice::midiDataTxCb<3>,
-#endif
-#if (NUM_MIDI_PORTS >= 5)
-		&CMIDIDevices::CMIDIDevice::midiDataTxCb<4>,
-#endif
-#if (NUM_MIDI_PORTS >= 6)
-		&CMIDIDevices::CMIDIDevice::midiDataTxCb<5>,
-#endif
-#if (NUM_MIDI_PORTS >= 7)
-		&CMIDIDevices::CMIDIDevice::midiDataTxCb<6>,
-#endif
-	};
+	init_callbacks<MIDI_PORT_COUNT-1>();
 
 	for (int i = 0; i < MIDI_PORT_COUNT; ++i) {
 		port(i).m_pEndpoints = &midiEndpoints[i*2];
 
-		midiEndpoints[i*2].callback = arrRxCallbacks[i];
-		midiEndpoints[i*2].pmaSize = 64;		// patch
-		midiEndpoints[i*2].type = USB_GENERIC_ENDPOINT_TYPE_BULK;
-		midiEndpoints[i*2].tx = 0;
+		midiEndpoints[i*2+MIDI_ENDPOINT_OFFSET_RX].callback = marr_midiDataRxCb[i];
+		midiEndpoints[i*2+MIDI_ENDPOINT_OFFSET_RX].pmaSize = 64;		// patch
+		midiEndpoints[i*2+MIDI_ENDPOINT_OFFSET_RX].type = USB_GENERIC_ENDPOINT_TYPE_BULK;
+		midiEndpoints[i*2+MIDI_ENDPOINT_OFFSET_RX].tx = 0;
 
-		midiEndpoints[i*2+1].callback = arrTxCallbacks[i];
-		midiEndpoints[i*2+1].pmaSize = 64;		// patch
-		midiEndpoints[i*2+1].type = USB_GENERIC_ENDPOINT_TYPE_BULK;
-		midiEndpoints[i*2+1].tx = 1;
+		midiEndpoints[i*2+MIDI_ENDPOINT_OFFSET_TX].callback = marr_midiDataTxCb[i];
+		midiEndpoints[i*2+MIDI_ENDPOINT_OFFSET_TX].pmaSize = 64;		// patch
+		midiEndpoints[i*2+MIDI_ENDPOINT_OFFSET_TX].type = USB_GENERIC_ENDPOINT_TYPE_BULK;
+		midiEndpoints[i*2+MIDI_ENDPOINT_OFFSET_TX].tx = 1;
 	}
 }
 
@@ -380,14 +345,14 @@ void CMIDIDevices::CMIDIDevice::usb_midi_setRXEPSize(uint32_t size)
  * buffer, and returns the number of bytes copied. */
 uint32_t CMIDIDevices::CMIDIDevice::usb_midi_tx(const uint32_t* buf, uint32_t packets)
 {
-	uint32_t bytes=packets*4;
+	uint32_t bytes=packets*sizeof(uint32_t);
 	/* Last transmission hasn't finished, so abort. */
 	if (usb_midi_is_transmitting()) return 0;  /* return len */
 
 	/* We can only put m_txEPSize bytes in the buffer. */
 	if (bytes > m_txEPSize) {
 		bytes = m_txEPSize;
-		packets=bytes/4;
+		packets=bytes/sizeof(uint32_t);
 	}
 
 	/* Queue bytes for sending. */
