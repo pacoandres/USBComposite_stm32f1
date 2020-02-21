@@ -40,9 +40,6 @@
 #include "usb_generic.h"
 #include "usb_midi_device.h"
 #include "MidiSpecs.h"
-#if 0
-#include "MinSysex.h"
-#endif
 
 #include <libmaple/usb.h>
 #include <libmaple/delay.h>
@@ -425,91 +422,4 @@ uint32_t CMIDIDevices::CMIDIDevice::usb_midi_peek(uint32_t* buf, uint32_t packet
 }
 
 // ------------------------------------------------------------------------------------------------
-// ------------------------------------------------------------------------------------------------
 
-#if 0
-// eventually all of this should be in a place for settings which can be written to flash.
-volatile uint8 myMidiChannel = DEFAULT_MIDI_CHANNEL;
-volatile uint8 myMidiDevice = DEFAULT_MIDI_DEVICE;
-volatile uint8 myMidiCable = DEFAULT_MIDI_CABLE;
-volatile uint8 myMidiID[] = { LEAFLABS_MMA_VENDOR_1,LEAFLABS_MMA_VENDOR_2,LEAFLABS_MMA_VENDOR_3,0};
-
-
-// .............THIS IS NOT WORKING YET................
-// send debugging information to
-static uint8_t sysexbuffer[80]={CIN_SYSEX,0xF0,0x7D,0x33,CIN_SYSEX,0x33,0x00,0xf7}; // !!!bad hardcoded number foo !!!
-uint8_t iSysHexLine(uint8_t rectype, uint16_t address, uint8_t *payload,uint8_t payloadlength, uint8_t *buffer);
-void sendThroughSysex(char *printbuffer, int bufferlength) {
-	int n;
-	n = iSysHexLine(1, 0 , (uint8_t *) printbuffer, (uint8_t) bufferlength , sysexbuffer+6);
-	usb_midi_tx((uint32*)sysexbuffer,n/4);
-}
-
-#define HIGHBYTE(x) ((uint8_t) (((x) >> 8) &  0x00ff) )
-#define LOWBYTE(x) ((uint8_t) ((x) & 0x00ff) )
-#define HIGHNIBBLE(x) ((((uint8_t)(x)) & 0xF0) >> 4)
-#define LOWNIBBLE(x) (((uint8_t)(x)) & 0x0F)
-#define HEXCHAR(c) ((c>9)?55+c:48+c)
-
-
-uint8_t iSysHexLine(uint8_t rectype, uint16_t address, uint8_t *payload,uint8_t payloadlength, uint8_t *buffer) {
-
-	int i=0; int j; int thirdone;
-	uint8_t n=0;
-	uint16_t checksum=0;
-	//uint16_t length=0;
-
-	buffer[i++]=':';
-
-	checksum+=payloadlength;
-	buffer[i++]=HEXCHAR(HIGHNIBBLE(payloadlength));
-	buffer[i++]=HEXCHAR(LOWNIBBLE(payloadlength));
-	buffer[i++]=CIN_SYSEX;
-
-	n=HIGHBYTE(address);
-	checksum+=n;
-	buffer[i++]=HEXCHAR(HIGHNIBBLE(n));
-	buffer[i++]=HEXCHAR(LOWNIBBLE(n));
-
-	n=LOWBYTE(address);
-	checksum+=n;
-	buffer[i++]=HEXCHAR(HIGHNIBBLE(n));
-	buffer[i++]=CIN_SYSEX;
-	buffer[i++]=HEXCHAR(LOWNIBBLE(n));
-
-	n=rectype;
-	checksum+=n;
-	buffer[i++]=HEXCHAR(HIGHNIBBLE(n));
-	buffer[i++]=HEXCHAR(LOWNIBBLE(n));
-	buffer[i++]=CIN_SYSEX;
-	thirdone=0;
-	for (j=0; j<payloadlength ; j++) {
-		n=payload[j];
-		checksum+=n;
-		buffer[i++]=HEXCHAR(HIGHNIBBLE(n));
-		if (++thirdone==3) {
-			buffer[i++]=CIN_SYSEX;
-			thirdone=0;
-		}
-		buffer[i++]=HEXCHAR(LOWNIBBLE(n));
-		if (++thirdone==3) {
-			buffer[i++]=CIN_SYSEX;
-			thirdone=0;
-		}
-	}
-	if (thirdone==0) {
-		buffer[i-1]=CIN_SYSEX_ENDS_IN_3;
-	}
-	n=~((uint8_t) checksum&0x00ff)+1;
-	buffer[i++]=HEXCHAR(HIGHNIBBLE(n));
-	if (thirdone==1) {
-		buffer[i++]=CIN_SYSEX_ENDS_IN_2;
-	}
-	buffer[i++]=HEXCHAR(LOWNIBBLE(n));
-	if (thirdone==2) {
-		buffer[i++]=CIN_SYSEX_ENDS_IN_1;
-	}
-	buffer[i++]=0xf7;
-	return i+thirdone;
-}
-#endif

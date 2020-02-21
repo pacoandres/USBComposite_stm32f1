@@ -36,8 +36,10 @@
 #include <libmaple/libmaple_types.h>
 #include <libmaple/gpio.h>
 #include <libmaple/usb.h>
-#include <MinSysex.h>
+#include "MidiSpecs.h"
 #include "usb_generic.h"
+
+#define DEFAULT_MIDI_CABLE      0x00
 
 #ifdef __cplusplus
 extern "C" {
@@ -157,12 +159,6 @@ typedef struct {
  }
 #endif
 
-/*
- * Sysex Stuff.
- */
-
-#define SYSEX_BUFFER_LENGTH 256
-
 #ifdef __cplusplus
 }
 #endif
@@ -196,10 +192,6 @@ public:
 		uint16_t usb_midi_get_pending(void) const;
 		bool usb_midi_is_transmitting(void) const;
 
-	#if 0
-		void sendThroughSysex(char *printbuffer, int bufferlength);
-	#endif
-
 	protected:
 		friend class CMIDIDevices;
 
@@ -227,9 +219,6 @@ public:
 
 			usb_copy_from_pma_ptr((uint8_t*)dev.midiBufferRx, dev.n_unread_packets * sizeof(uint32_t),
 							  (uint32_t*)pEndpoint->pma);
-
-			// discard volatile
-//			LglSysexHandler((uint32*)dev.midiBufferRx,(uint32*)&dev.rx_offset,(uint32*)&dev.n_unread_packets);
 
 			if (dev.n_unread_packets == 0) {
 				usb_generic_enable_rx(pEndpoint);
