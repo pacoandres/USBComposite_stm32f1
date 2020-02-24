@@ -147,7 +147,7 @@ typedef struct {
 //    usb_descriptor_config_header       Config_Header;
 	/* Control Interface */
 	usb_descriptor_interface           AC_Interface;
-	AC_CS_INTERFACE_DESCRIPTOR(CMIDIDevices::MIDI_PORT_COUNT)      AC_CS_Interface;
+	AC_CS_INTERFACE_DESCRIPTOR(1)      AC_CS_Interface;
 	/* Control Interface */
 	usb_descriptor_interface           MS_Interface;
 	MS_CS_INTERFACE_DESCRIPTOR         MS_CS_Interface;
