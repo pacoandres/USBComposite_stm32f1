@@ -89,8 +89,12 @@ typedef struct {
 			.bJackType          = MIDI_JACK_EMBEDDED,
 			.bJackId            = 0x03,			// Patch
 			.bNrInputPins       = 0x01,
-			.baSourceId         = {0x02},		// Patch
-			.baSourcePin        = {0x01},		// Patch
+			.baSource = {
+				{
+					.baSourceId     = 0x02,		// Patch
+					.baSourcePin    = 0x01		// Patch
+				}
+			},
 			.iJack              = 0x00,
 		};
 
@@ -101,8 +105,12 @@ typedef struct {
 			.bJackType          = MIDI_JACK_EXTERNAL,
 			.bJackId            = 0x04,
 			.bNrInputPins       = 0x01,
-			.baSourceId         = {0x01},		// Patch
-			.baSourcePin        = {0x01},		// Patch
+			.baSource = {
+				{
+					.baSourceId     = 0x01,		// Patch
+					.baSourcePin    = 0x01		// Patch
+				}
+			},
 			.iJack              = 0x00,
 		};
 
@@ -250,8 +258,8 @@ void CMIDIDevices::getMIDIPartDescriptor(uint8* out)
 		pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_3.bJackId += (nPort*4);
 		pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_4.bJackId += (nPort*4);
 
-		pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_3.baSourceId[0] += (nPort*2);
-		pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_4.baSourceId[0] += (nPort*2);
+		pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_3.baSource[0].baSourceId += (nPort*2);
+		pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_4.baSource[0].baSourceId += (nPort*2);
 
 		pDescriptorOut->MS_PORTS[nPort].MS_CS_DataOutEndpoint.baAssocJackID[0] += (nPort*4);
 		pDescriptorOut->MS_PORTS[nPort].MS_CS_DataInEndpoint.baAssocJackID[0] += (nPort*4);

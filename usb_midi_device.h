@@ -119,8 +119,10 @@ typedef struct {
 	  uint8  bJackType;                             \
 	  uint8  bJackId;                               \
 	  uint8  bNrInputPins;                          \
-	  uint8  baSourceId[DataSize];                  \
-	  uint8  baSourcePin[DataSize];                 \
+	  struct {                                      \
+		uint8  baSourceId;                          \
+		uint8  baSourcePin;                         \
+	  } __packed baSource[DataSize];                \
 	  uint8  iJack;                                 \
   } __packed
 
