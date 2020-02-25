@@ -213,7 +213,7 @@ static const usb_descriptor_config usbMIDIDescriptor_Config = {
 	.MS_CS_Interface = {
 		.bLength            = sizeof(MS_CS_INTERFACE_DESCRIPTOR),
 		.bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
-		.SubType            = 0x01,
+		.SubType            = MS_HEADER,
 		.bcdADC             = 0x0100,
 		.wTotalLength       = sizeof(MS_CS_INTERFACE_DESCRIPTOR) +
 							  (sizeof(MIDI_IN_JACK_DESCRIPTOR)

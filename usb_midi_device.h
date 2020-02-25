@@ -74,8 +74,10 @@ typedef union {
 #define USB_INTERFACE_MIDISTREAMING       0x03
 
 /* MIDI Streaming class specific interfaces */
+#define MS_HEADER                         0x01
 #define MIDI_IN_JACK                      0x02
 #define MIDI_OUT_JACK                     0x03
+#define MIDI_ELEMENT                      0x04
 
 #define MIDI_JACK_EMBEDDED                0x01
 #define MIDI_JACK_EXTERNAL                0x02
@@ -124,6 +126,26 @@ typedef struct {
 		uint8  baSourcePin;                         \
 	  } __packed baSource[DataSize];                \
 	  uint8  iJack;                                 \
+  } __packed
+
+#define MIDI_ELEMENT_DESCRIPTOR_SIZE(baSourceSize, bmElCapsSize) (10 + (2*baSourceSize) + (bmElCapsSize))
+#define MIDI_ELEMENT_DESCRIPTOR(baSourceSize, bmElCapsSize)     \
+  struct {                                                      \
+	  uint8  bLength;                                           \
+	  uint8  bDescriptorType;                                   \
+	  uint8  SubType;                                           \
+	  uint8  bElementID;                                        \
+	  uint8  bNrInputPins;                                      \
+	  struct {                                                  \
+		uint8  baSourceId;                                      \
+		uint8  baSourcePin;                                     \
+	  } __packed baSource[baSourceSize];                        \
+	  uint8  bNrOutputPins;                                     \
+	  uint8  bInTerminalLink;                                   \
+	  uint8  bOutTerminalLink;                                  \
+	  uint8  bElCapsSize;                                       \
+	  uint8  bmElementCaps[bmElCapsSize];                       \
+	  uint8  iElement;                                          \
   } __packed
 
 
