@@ -64,6 +64,36 @@ extern "C" {
  */
 
 typedef struct {
+	/* Control Interface */
+	usb_descriptor_interface           MS_Interface = {
+		.bLength            = sizeof(usb_descriptor_interface),
+		.bDescriptorType    = USB_DESCRIPTOR_TYPE_INTERFACE,
+		.bInterfaceNumber   = 0x01, // PATCH
+		.bAlternateSetting  = 0x00,
+		.bNumEndpoints      = 0x02,
+		.bInterfaceClass    = USB_INTERFACE_CLASS_AUDIO,
+		.bInterfaceSubClass = USB_INTERFACE_MIDISTREAMING,
+		.bInterfaceProtocol = 0x00,
+		.iInterface         = 0, // was 0x04
+	};
+
+	MS_CS_INTERFACE_DESCRIPTOR         MS_CS_Interface = {
+		.bLength            = sizeof(MS_CS_INTERFACE_DESCRIPTOR),
+		.bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
+		.SubType            = MS_HEADER,
+		.bcdADC             = 0x0100,
+		.wTotalLength       = sizeof(MS_CS_INTERFACE_DESCRIPTOR)
+							   +sizeof(MIDI_IN_JACK_DESCRIPTOR)
+							   +sizeof(MIDI_IN_JACK_DESCRIPTOR)
+							   +MIDI_OUT_JACK_DESCRIPTOR_SIZE(1)
+							   +MIDI_OUT_JACK_DESCRIPTOR_SIZE(1)
+							   +sizeof(usb_descriptor_endpoint)
+							   +MS_CS_BULK_ENDPOINT_DESCRIPTOR_SIZE(1)
+							   +sizeof(usb_descriptor_endpoint)
+							   +MS_CS_BULK_ENDPOINT_DESCRIPTOR_SIZE(1)
+								 /* 0x41-4 */,
+	};
+
 	MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_1 = {
 			.bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
 			.bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
@@ -152,17 +182,6 @@ typedef struct {
 } __packed midi_port_descriptor;
 
 typedef struct {
-//    usb_descriptor_config_header       Config_Header;
-	/* Control Interface */
-	usb_descriptor_interface           AC_Interface;
-	AC_CS_INTERFACE_DESCRIPTOR(1)      AC_CS_Interface;
-	/* Control Interface */
-	usb_descriptor_interface           MS_Interface;
-	MS_CS_INTERFACE_DESCRIPTOR         MS_CS_Interface;
-	midi_port_descriptor               MS_PORTS[CMIDIDevices::MIDI_PORT_COUNT];
-} __packed usb_descriptor_config;
-
-static const usb_descriptor_config usbMIDIDescriptor_Config = {
 	/* .Config_Header = {
 		.bLength              = sizeof(usb_descriptor_config_header),
 		.bDescriptorType      = USB_DESCRIPTOR_TYPE_CONFIGURATION,
@@ -174,8 +193,10 @@ static const usb_descriptor_config usbMIDIDescriptor_Config = {
 								 USB_CONFIG_ATTR_SELF_POWERED),
 		.bMaxPower            = MAX_POWER,
 	}, */
+//    usb_descriptor_config_header       Config_Header;
 
-	.AC_Interface = {
+	/* Control Interface */
+	usb_descriptor_interface           AC_Interface = {
 		.bLength            = sizeof(usb_descriptor_interface),
 		.bDescriptorType    = USB_DESCRIPTOR_TYPE_INTERFACE,
 		.bInterfaceNumber   = 0x00,		// PATCH
@@ -185,50 +206,23 @@ static const usb_descriptor_config usbMIDIDescriptor_Config = {
 		.bInterfaceSubClass = USB_INTERFACE_AUDIOCONTROL,
 		.bInterfaceProtocol = 0x00,
 		.iInterface         = 0x00,
-	},
+	};
 
-	.AC_CS_Interface = {
-		.bLength            = AC_CS_INTERFACE_DESCRIPTOR_SIZE(1),
+	AC_CS_INTERFACE_DESCRIPTOR(CMIDIDevices::MIDI_PORT_COUNT)      AC_CS_Interface = {
+		.bLength            = AC_CS_INTERFACE_DESCRIPTOR_SIZE(CMIDIDevices::MIDI_PORT_COUNT),
 		.bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
 		.SubType            = 0x01,
 		.bcdADC             = 0x0100,
-		.wTotalLength       = AC_CS_INTERFACE_DESCRIPTOR_SIZE(1),
-		.bInCollection      = 0x01,
-		.baInterfaceNr      = {0x01},	// Patch
-	},
+		.wTotalLength       = AC_CS_INTERFACE_DESCRIPTOR_SIZE(CMIDIDevices::MIDI_PORT_COUNT),
+		.bInCollection      = CMIDIDevices::MIDI_PORT_COUNT,
+		.baInterfaceNr      = { },		// Patch
+	};
 
 	/* Control Interface */
-	.MS_Interface = {
-		.bLength            = sizeof(usb_descriptor_interface),
-		.bDescriptorType    = USB_DESCRIPTOR_TYPE_INTERFACE,
-		.bInterfaceNumber   = 0x01, // PATCH
-		.bAlternateSetting  = 0x00,
-		.bNumEndpoints      = 0x02 * CMIDIDevices::MIDI_PORT_COUNT,
-		.bInterfaceClass    = USB_INTERFACE_CLASS_AUDIO,
-		.bInterfaceSubClass = USB_INTERFACE_MIDISTREAMING,
-		.bInterfaceProtocol = 0x00,
-		.iInterface         = 0, // was 0x04
-	},
+	midi_port_descriptor               MS_PORTS[CMIDIDevices::MIDI_PORT_COUNT];
+} __packed usb_descriptor_config;
 
-	.MS_CS_Interface = {
-		.bLength            = sizeof(MS_CS_INTERFACE_DESCRIPTOR),
-		.bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
-		.SubType            = MS_HEADER,
-		.bcdADC             = 0x0100,
-		.wTotalLength       = sizeof(MS_CS_INTERFACE_DESCRIPTOR) +
-							  (sizeof(MIDI_IN_JACK_DESCRIPTOR)
-							   +sizeof(MIDI_IN_JACK_DESCRIPTOR)
-							   +MIDI_OUT_JACK_DESCRIPTOR_SIZE(1)
-							   +MIDI_OUT_JACK_DESCRIPTOR_SIZE(1)
-							   +sizeof(usb_descriptor_endpoint)
-							   +MS_CS_BULK_ENDPOINT_DESCRIPTOR_SIZE(1)
-							   +sizeof(usb_descriptor_endpoint)
-							   +MS_CS_BULK_ENDPOINT_DESCRIPTOR_SIZE(1)
-							  ) * CMIDIDevices::MIDI_PORT_COUNT
-								 /* 0x41-4 */,
-	},
-
-};
+static const usb_descriptor_config usbMIDIDescriptor_Config;
 
 static USBEndpointInfo midiEndpoints[2 * CMIDIDevices::MIDI_PORT_COUNT] = {};
 
@@ -242,11 +236,12 @@ void CMIDIDevices::getMIDIPartDescriptor(uint8* out)
 
 	// patch to reflect where the part goes in the descriptor
 	pDescriptorOut->AC_Interface.bInterfaceNumber += usbMIDIPart.startInterface;
-	pDescriptorOut->AC_CS_Interface.baInterfaceNr[0] += usbMIDIPart.startInterface;
-	pDescriptorOut->MS_Interface.bInterfaceNumber += usbMIDIPart.startInterface;
 	for (int nPort = 0; nPort < MIDI_PORT_COUNT; ++nPort) {
 		USBEndpointInfo *pRxEndpoint = &midiEndpoints[nPort*2+MIDI_ENDPOINT_OFFSET_RX];
 		USBEndpointInfo *pTxEndpoint = &midiEndpoints[nPort*2+MIDI_ENDPOINT_OFFSET_TX];
+
+		pDescriptorOut->MS_PORTS[nPort].MS_Interface.bInterfaceNumber += nPort + usbMIDIPart.startInterface;
+		pDescriptorOut->AC_CS_Interface.baInterfaceNr[nPort] = pDescriptorOut->MS_PORTS[nPort].MS_Interface.bInterfaceNumber;
 
 		pDescriptorOut->MS_PORTS[nPort].DataOutEndpoint.bEndpointAddress += pRxEndpoint->address;
 		pDescriptorOut->MS_PORTS[nPort].DataOutEndpoint.wMaxPacketSize = static_cast<uint16_t>(g_MIDIDevices.port(nPort).usb_midi_rxEPSize());
@@ -258,8 +253,10 @@ void CMIDIDevices::getMIDIPartDescriptor(uint8* out)
 		pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_3.bJackId += (nPort*4);
 		pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_4.bJackId += (nPort*4);
 
-		pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_3.baSource[0].baSourceId += (nPort*2);
-		pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_4.baSource[0].baSourceId += (nPort*2);
+		pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_3.baSource[0].baSourceId += (nPort*4);
+		pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_3.baSource[0].baSourcePin += nPort;
+		pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_4.baSource[0].baSourceId += (nPort*4);
+		pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_4.baSource[0].baSourcePin += nPort;
 
 		pDescriptorOut->MS_PORTS[nPort].MS_CS_DataOutEndpoint.baAssocJackID[0] += (nPort*4);
 		pDescriptorOut->MS_PORTS[nPort].MS_CS_DataInEndpoint.baAssocJackID[0] += (nPort*4);
@@ -267,7 +264,7 @@ void CMIDIDevices::getMIDIPartDescriptor(uint8* out)
 }
 
 USBCompositePart usbMIDIPart = {
-	.numInterfaces = 2,
+	.numInterfaces = 1+CMIDIDevices::MIDI_PORT_COUNT,
 	.numEndpoints = sizeof(midiEndpoints)/sizeof(*midiEndpoints),
 	.startInterface = 0,
 	.descriptorSize = sizeof(usbMIDIDescriptor_Config),
