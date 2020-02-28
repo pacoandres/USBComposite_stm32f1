@@ -49,11 +49,6 @@
 #include <libmaple/usb.h>
 #include "usb_generic.h"
 
-// TODO : Rework this to use any of the multiple ports
-//	of CMIDIDevices.  But in the meantime, just default
-//	to port 0 which must always exist and will be consistent
-//	with old functionality:
-#define midiport g_MIDIDevices.port(0)
 
 /*
  * USBMIDI interface
@@ -67,13 +62,13 @@ void USBMIDI::setChannel(unsigned int channel) {
 }
 
 bool USBMIDI::init(USBMIDI* me) {
-	midiport.usb_midi_setTXEPSize(me->txPacketSize);
-	midiport.usb_midi_setRXEPSize(me->rxPacketSize);
+	CMIDIDevices::usb_midi_setTXEPSize(me->txPacketSize);
+	CMIDIDevices::usb_midi_setRXEPSize(me->rxPacketSize);
 	return true;
 }
 
 bool USBMIDI::registerComponent() {
-    return USBComposite.add(&usbMIDIPart, this, (USBPartInitializer)&USBMIDI::init); 
+	return USBComposite.add(CMIDIDevices::getUSBMIDIPart(), this, (USBPartInitializer)&USBMIDI::init);
 }
 
 void USBMIDI::begin(unsigned channel) {
@@ -112,7 +107,7 @@ void USBMIDI::writePackets(const void *buf, uint32 len) {
     uint32 sent = 0;
 
     while (txed < len && (millis() - start < USB_TIMEOUT)) {
-        sent = midiport.usb_midi_tx((const uint32*)buf + txed, len - txed);
+		sent = CMIDIDevices::usb_midi_tx((const uint32*)buf + txed, len - txed);
         txed += sent;
         if (old_txed != txed) {
             start = millis();
@@ -121,16 +116,16 @@ void USBMIDI::writePackets(const void *buf, uint32 len) {
     }
 
 
-    if (sent == midiport.usb_midi_txEPSize()) {
-        while (midiport.usb_midi_is_transmitting() != 0) {
+	if (sent == CMIDIDevices::usb_midi_txEPSize()) {
+		while (CMIDIDevices::usb_midi_is_transmitting() != 0) {
         }
         /* flush out to avoid having the pc wait for more data */
-        midiport.usb_midi_tx(NULL, 0);
+		CMIDIDevices::usb_midi_tx(NULL, 0);
     }
 }
 
 uint32 USBMIDI::available(void) {
-    return midiport.usb_midi_data_available();
+	return CMIDIDevices::usb_midi_data_available();
 }
 
 uint32 USBMIDI::readPackets(void *buf, uint32 len) {
@@ -140,7 +135,7 @@ uint32 USBMIDI::readPackets(void *buf, uint32 len) {
 
     uint32 rxed = 0;
     while (rxed < len) {
-        rxed += midiport.usb_midi_rx((uint32*)buf + rxed, len - rxed);
+		rxed += CMIDIDevices::usb_midi_rx((uint32*)buf + rxed, len - rxed);
     }
 
     return rxed;
@@ -154,7 +149,7 @@ uint32 USBMIDI::readPacket(void) {
 }
 
 uint8 USBMIDI::pending(void) {
-    return midiport.usb_midi_get_pending();
+	return CMIDIDevices::usb_midi_get_pending();
 }
 
 uint8 USBMIDI::isConnected(void) {

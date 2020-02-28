@@ -53,9 +53,10 @@
 #include <usb_core.h>
 #include <usb_def.h>
 
+#define MIDI_ENDPOINT_OFFSET_RX 0
+#define MIDI_ENDPOINT_OFFSET_TX 1
 
 CMIDIDevices g_MIDIDevices;
-CMIDIDevices::CMIDIDevice CMIDIDevices::m_ports[CMIDIDevices::MIDI_PORT_COUNT];
 
 extern "C" {
 
@@ -224,9 +225,9 @@ typedef struct {
 
 static const usb_descriptor_config usbMIDIDescriptor_Config;
 
-static USBEndpointInfo midiEndpoints[2 * CMIDIDevices::MIDI_PORT_COUNT] = {};
-
 }	// extern "C"
+
+// ------------------------------------------------------------------------------------------------
 
 void CMIDIDevices::getMIDIPartDescriptor(uint8* out)
 {
@@ -237,16 +238,16 @@ void CMIDIDevices::getMIDIPartDescriptor(uint8* out)
 	// patch to reflect where the part goes in the descriptor
 	pDescriptorOut->AC_Interface.bInterfaceNumber += usbMIDIPart.startInterface;
 	for (int nPort = 0; nPort < MIDI_PORT_COUNT; ++nPort) {
-		USBEndpointInfo *pRxEndpoint = &midiEndpoints[nPort*2+MIDI_ENDPOINT_OFFSET_RX];
-		USBEndpointInfo *pTxEndpoint = &midiEndpoints[nPort*2+MIDI_ENDPOINT_OFFSET_TX];
+		USBEndpointInfo *pRxEndpoint = &m_midiEndpoints[MIDI_ENDPOINT_OFFSET_RX];
+		USBEndpointInfo *pTxEndpoint = &m_midiEndpoints[MIDI_ENDPOINT_OFFSET_TX];
 
 		pDescriptorOut->MS_PORTS[nPort].MS_Interface.bInterfaceNumber += nPort + usbMIDIPart.startInterface;
 		pDescriptorOut->AC_CS_Interface.baInterfaceNr[nPort] = pDescriptorOut->MS_PORTS[nPort].MS_Interface.bInterfaceNumber;
 
 		pDescriptorOut->MS_PORTS[nPort].DataOutEndpoint.bEndpointAddress += pRxEndpoint->address;
-		pDescriptorOut->MS_PORTS[nPort].DataOutEndpoint.wMaxPacketSize = static_cast<uint16_t>(g_MIDIDevices.port(nPort).usb_midi_rxEPSize());
+		pDescriptorOut->MS_PORTS[nPort].DataOutEndpoint.wMaxPacketSize = static_cast<uint16_t>(usb_midi_rxEPSize());
 		pDescriptorOut->MS_PORTS[nPort].DataInEndpoint.bEndpointAddress += pTxEndpoint->address;
-		pDescriptorOut->MS_PORTS[nPort].DataInEndpoint.wMaxPacketSize = static_cast<uint16_t>(g_MIDIDevices.port(nPort).usb_midi_txEPSize());
+		pDescriptorOut->MS_PORTS[nPort].DataInEndpoint.wMaxPacketSize = static_cast<uint16_t>(usb_midi_txEPSize());
 
 		pDescriptorOut->MS_PORTS[nPort].MIDI_IN_JACK_1.bJackId += (nPort*4);
 		pDescriptorOut->MS_PORTS[nPort].MIDI_IN_JACK_2.bJackId += (nPort*4);
@@ -263,75 +264,110 @@ void CMIDIDevices::getMIDIPartDescriptor(uint8* out)
 	}
 }
 
-USBCompositePart usbMIDIPart = {
+USBCompositePart CMIDIDevices::usbMIDIPart = {
 	.numInterfaces = 1+CMIDIDevices::MIDI_PORT_COUNT,
-	.numEndpoints = sizeof(midiEndpoints)/sizeof(*midiEndpoints),
+	.numEndpoints = sizeof(m_midiEndpoints)/sizeof(*m_midiEndpoints),
 	.startInterface = 0,
 	.descriptorSize = sizeof(usbMIDIDescriptor_Config),
-	.getPartDescriptor = g_MIDIDevices.getMIDIPartDescriptor,
+	.getPartDescriptor = getMIDIPartDescriptor,
 	.usbInit = nullptr,
-	.usbReset = g_MIDIDevices.usbMIDIReset,
+	.usbReset = usbMIDIReset,
 	.usbSetConfiguration = nullptr,
 	.usbClearFeature = nullptr,
 	.clear = nullptr,
 	.usbDataSetup = nullptr,
 	.usbNoDataSetup = nullptr,
-	.endpoints = midiEndpoints
+	.endpoints = m_midiEndpoints
 };
 
+/* Received data */
+volatile uint32_t CMIDIDevices::midiBufferRx[64/sizeof(uint32_t)];
+/* Read index into midiBufferRx */
+volatile uint32_t CMIDIDevices::rx_offset = 0;
+/* Transmit data */
+volatile uint32_t CMIDIDevices::midiBufferTx[64/sizeof(uint32_t)];
+/* Write index into midiBufferTx */
+volatile uint32_t CMIDIDevices::tx_offset = 0;
+/* Number of bytes left to transmit */
+volatile uint32_t CMIDIDevices::n_unsent_packets = 0;
+/* Are we currently sending an IN packet? */
+volatile bool CMIDIDevices::transmitting = false;
+/* Number of unread bytes */
+volatile uint32_t CMIDIDevices::n_unread_packets = 0;
 
-// ------------------------------------------------------------------------------------------------
+uint32_t CMIDIDevices::m_txEPSize = 64;
+uint32_t CMIDIDevices::m_rxEPSize = 64;
 
-template<>
-void CMIDIDevices::init_callbacks<0>()
-{
-	marr_midiDataTxCb[0] = &CMIDIDevice::midiDataTxCb<0>;
-	marr_midiDataRxCb[0] = &CMIDIDevice::midiDataRxCb<0>;
-}
+USBEndpointInfo CMIDIDevices::m_midiEndpoints[2] = { };
 
 CMIDIDevices::CMIDIDevices()
 {
-	init_callbacks<MIDI_PORT_COUNT-1>();
+	m_midiEndpoints[MIDI_ENDPOINT_OFFSET_RX].callback = &midiDataRxCb;
+	m_midiEndpoints[MIDI_ENDPOINT_OFFSET_RX].pmaSize = 64;		// patch
+	m_midiEndpoints[MIDI_ENDPOINT_OFFSET_RX].type = USB_GENERIC_ENDPOINT_TYPE_BULK;
+	m_midiEndpoints[MIDI_ENDPOINT_OFFSET_RX].tx = 0;
 
-	for (int i = 0; i < MIDI_PORT_COUNT; ++i) {
-		port(i).m_pEndpoints = &midiEndpoints[i*2];
+	m_midiEndpoints[MIDI_ENDPOINT_OFFSET_TX].callback = &midiDataTxCb;
+	m_midiEndpoints[MIDI_ENDPOINT_OFFSET_TX].pmaSize = 64;		// patch
+	m_midiEndpoints[MIDI_ENDPOINT_OFFSET_TX].type = USB_GENERIC_ENDPOINT_TYPE_BULK;
+	m_midiEndpoints[MIDI_ENDPOINT_OFFSET_TX].tx = 1;
+}
 
-		midiEndpoints[i*2+MIDI_ENDPOINT_OFFSET_RX].callback = marr_midiDataRxCb[i];
-		midiEndpoints[i*2+MIDI_ENDPOINT_OFFSET_RX].pmaSize = 64;		// patch
-		midiEndpoints[i*2+MIDI_ENDPOINT_OFFSET_RX].type = USB_GENERIC_ENDPOINT_TYPE_BULK;
-		midiEndpoints[i*2+MIDI_ENDPOINT_OFFSET_RX].tx = 0;
+// ------------------------------------------------------------------------------------------------
 
-		midiEndpoints[i*2+MIDI_ENDPOINT_OFFSET_TX].callback = marr_midiDataTxCb[i];
-		midiEndpoints[i*2+MIDI_ENDPOINT_OFFSET_TX].pmaSize = 64;		// patch
-		midiEndpoints[i*2+MIDI_ENDPOINT_OFFSET_TX].type = USB_GENERIC_ENDPOINT_TYPE_BULK;
-		midiEndpoints[i*2+MIDI_ENDPOINT_OFFSET_TX].tx = 1;
+// Callback Functions:
+// -------------------
+
+void CMIDIDevices::midiDataTxCb(void)
+{
+	n_unsent_packets = 0;
+	transmitting = false;
+}
+
+void CMIDIDevices::midiDataRxCb(void)
+{
+	USBEndpointInfo *pEndpoint = &m_midiEndpoints[MIDI_ENDPOINT_OFFSET_RX];
+
+	usb_generic_pause_rx(pEndpoint);
+	n_unread_packets = usb_get_ep_rx_count(pEndpoint->address) / sizeof(uint32_t);
+	/* This copy won't overwrite unread bytes, since we've set the RX
+	 * endpoint to NAK, and will only set it to VALID when all bytes
+	 * have been read. */
+
+	usb_copy_from_pma_ptr((uint8_t*)midiBufferRx, n_unread_packets * sizeof(uint32_t),
+					  (uint32_t*)pEndpoint->pma);
+
+	if (n_unread_packets == 0) {
+		usb_generic_enable_rx(pEndpoint);
+		rx_offset = 0;
 	}
 }
 
 void CMIDIDevices::usbMIDIReset(void)
 {
-	for (int i = 0; i < MIDI_PORT_COUNT; ++i) {
-		g_MIDIDevices.port(i).usbMIDIReset();
-	}
+	/* Reset the RX/TX state */
+	n_unread_packets = 0;
+	n_unsent_packets = 0;
+	rx_offset = 0;
 }
 
 // ------------------------------------------------------------------------------------------------
 
-void CMIDIDevices::CMIDIDevice::usb_midi_setTXEPSize(uint32_t size)
+void CMIDIDevices::usb_midi_setTXEPSize(uint32_t size)
 {
 	size = (size+3)/4*4;
 	if (size == 0 || size > 64)
 		size = 64;
-	midiEndpoints[1].pmaSize = size;
+	m_midiEndpoints[1].pmaSize = size;
 	m_txEPSize = size;
 }
 
-void CMIDIDevices::CMIDIDevice::usb_midi_setRXEPSize(uint32_t size)
+void CMIDIDevices::usb_midi_setRXEPSize(uint32_t size)
 {
 	size = (size+3)/4*4;
 	if (size == 0 || size > 64)
 		size = 64;
-	midiEndpoints[0].pmaSize = size;
+	m_midiEndpoints[0].pmaSize = size;
 	m_rxEPSize = size;
 }
 
@@ -345,7 +381,7 @@ void CMIDIDevices::CMIDIDevice::usb_midi_setRXEPSize(uint32_t size)
  *
  * It copies data from a usercode buffer into the USB peripheral TX
  * buffer, and returns the number of bytes copied. */
-uint32_t CMIDIDevices::CMIDIDevice::usb_midi_tx(const uint32_t* buf, uint32_t packets)
+uint32_t CMIDIDevices::usb_midi_tx(const uint32_t* buf, uint32_t packets)
 {
 	uint32_t bytes=packets*sizeof(uint32_t);
 	/* Last transmission hasn't finished, so abort. */
@@ -359,29 +395,29 @@ uint32_t CMIDIDevices::CMIDIDevice::usb_midi_tx(const uint32_t* buf, uint32_t pa
 
 	/* Queue bytes for sending. */
 	if (packets) {
-		usb_copy_to_pma_ptr((const uint8_t *)buf, static_cast<uint16_t>(bytes), (uint32_t*)m_pEndpoints[MIDI_ENDPOINT_OFFSET_TX].pma);
+		usb_copy_to_pma_ptr((const uint8_t *)buf, static_cast<uint16_t>(bytes), (uint32_t*)m_midiEndpoints[MIDI_ENDPOINT_OFFSET_TX].pma);
 	}
 	// We still need to wait for the interrupt, even if we're sending
 	// zero bytes. (Sending zero-size packets is useful for flushing
 	// host-side buffers.)
 	n_unsent_packets = packets;
 	transmitting = true;
-	usb_generic_set_tx(&m_pEndpoints[MIDI_ENDPOINT_OFFSET_TX], bytes);
+	usb_generic_set_tx(&m_midiEndpoints[MIDI_ENDPOINT_OFFSET_TX], bytes);
 
 	return packets;
 }
 
-uint32_t CMIDIDevices::CMIDIDevice::usb_midi_data_available(void) const
+uint32_t CMIDIDevices::usb_midi_data_available(void)
 {
 	return n_unread_packets;
 }
 
-bool CMIDIDevices::CMIDIDevice::usb_midi_is_transmitting(void) const
+bool CMIDIDevices::usb_midi_is_transmitting(void)
 {
 	return transmitting;
 }
 
-uint16_t CMIDIDevices::CMIDIDevice::usb_midi_get_pending(void) const
+uint16_t CMIDIDevices::usb_midi_get_pending(void)
 {
 	return static_cast<uint16_t>(n_unsent_packets);
 }
@@ -390,7 +426,7 @@ uint16_t CMIDIDevices::CMIDIDevice::usb_midi_get_pending(void) const
  *
  * Copies up to len bytes from our private data buffer (*NOT* the PMA)
  * into buf and deq's the FIFO. */
-uint32_t CMIDIDevices::CMIDIDevice::usb_midi_rx(uint32_t* buf, uint32_t packets)
+uint32_t CMIDIDevices::usb_midi_rx(uint32_t* buf, uint32_t packets)
 {
 	/* Copy bytes to buffer. */
 	uint32_t n_copied = usb_midi_peek(buf, packets);
@@ -402,7 +438,7 @@ uint32_t CMIDIDevices::CMIDIDevice::usb_midi_rx(uint32_t* buf, uint32_t packets)
 	/* If all bytes have been read, re-enable the RX endpoint, which
 	 * was set to NAK when the current batch of bytes was received. */
 	if (n_unread_packets == 0) {
-		usb_generic_enable_rx(&m_pEndpoints[MIDI_ENDPOINT_OFFSET_RX]);
+		usb_generic_enable_rx(&m_midiEndpoints[MIDI_ENDPOINT_OFFSET_RX]);
 		rx_offset = 0;
 	}
 
@@ -412,7 +448,7 @@ uint32_t CMIDIDevices::CMIDIDevice::usb_midi_rx(uint32_t* buf, uint32_t packets)
 /* Nonblocking byte lookahead.
  *
  * Looks at unread bytes without marking them as read. */
-uint32_t CMIDIDevices::CMIDIDevice::usb_midi_peek(uint32_t* buf, uint32_t packets) const
+uint32_t CMIDIDevices::usb_midi_peek(uint32_t* buf, uint32_t packets)
 {
 	uint32_t i;
 	if (packets > n_unread_packets) {
