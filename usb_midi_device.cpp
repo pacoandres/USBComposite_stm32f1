@@ -64,6 +64,14 @@ extern "C" {
  * Descriptors
  */
 
+//
+// IDs :	0x01 - 0x10 = Embedded MIDI IN Jacks (correspond to Cables 0x0-0xF)
+//			0x11 - 0x20 = Embedded MIDI OUT Jacks (correspond to Cables 0x0-0xF)
+//			0x21 - 0x30 = Elements (only 0x21 is currently defined)
+//			0x31 - 0x40 = External MIDI IN Jacks
+//			0x41 - 0x50 = External MIDI OUT Jacks
+//
+
 typedef struct {
 	MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_EMB = {
 			.bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
@@ -79,7 +87,7 @@ typedef struct {
 			.bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
 			.SubType            = MIDI_IN_JACK,
 			.bJackType          = MIDI_JACK_EXTERNAL,
-			.bJackId            = 0x09,			// Patch
+			.bJackId            = 0x31,			// Patch
 			.iJack              = 0x00,
 		};
 
@@ -104,7 +112,7 @@ typedef struct {
 			.bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
 			.SubType            = MIDI_OUT_JACK,
 			.bJackType          = MIDI_JACK_EXTERNAL,
-			.bJackId            = 0x19,
+			.bJackId            = 0x41,
 			.bNrInputPins       = 0x01,
 			.baSource = {
 				{
@@ -173,7 +181,7 @@ typedef struct {
 		.SubType            = MS_HEADER,
 		.bcdADC             = 0x0100,
 		.wTotalLength       = sizeof(MS_CS_INTERFACE_DESCRIPTOR)
-							   +MIDI_ELEMENT_DESCRIPTOR_SIZE(CMIDIDevices::MIDI_PORT_COUNT, 2)
+							   +MIDI_ELEMENT_DESCRIPTOR_SIZE(CMIDIDevices::MIDI_PORT_COUNT*2, 2)
 							   +(sizeof(MIDI_IN_JACK_DESCRIPTOR)
 								+sizeof(MIDI_IN_JACK_DESCRIPTOR)
 								+MIDI_OUT_JACK_DESCRIPTOR_SIZE(1)
@@ -185,14 +193,14 @@ typedef struct {
 								 /* 0x41-4 */,
 	};
 
-	MIDI_ELEMENT_DESCRIPTOR(CMIDIDevices::MIDI_PORT_COUNT, 2)	MIDIElementDescriptor = {
-		.bLength            = MIDI_ELEMENT_DESCRIPTOR_SIZE(CMIDIDevices::MIDI_PORT_COUNT, 2),
+	MIDI_ELEMENT_DESCRIPTOR(CMIDIDevices::MIDI_PORT_COUNT*2, 2)	MIDIElementDescriptor = {
+		.bLength            = MIDI_ELEMENT_DESCRIPTOR_SIZE(CMIDIDevices::MIDI_PORT_COUNT*2, 2),
 		.bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
 		.SubType            = MIDI_ELEMENT,
 		.bElementID         = 0x21,
-		.bNrInputPins       = CMIDIDevices::MIDI_PORT_COUNT,
+		.bNrInputPins       = CMIDIDevices::MIDI_PORT_COUNT*2,		// Twice as many for embedded and external jacks for each port
 		.baSource           = { },		// Patch
-		.bNrOutputPins      = CMIDIDevices::MIDI_PORT_COUNT,
+		.bNrOutputPins      = CMIDIDevices::MIDI_PORT_COUNT*2,		// Twice as many for embedded and external jacks for each port
 		.bInTerminalLink    = 0,
 		.bOutTerminalLink   = 0,
 		.bElCapsSize        = 2,
@@ -268,19 +276,25 @@ void CMIDIDevices::getMIDIPartDescriptor(uint8* out)
 	pDescriptorOut->DataInEndpoint.wMaxPacketSize = static_cast<uint16_t>(usb_midi_txEPSize());
 
 	for (int nPort = 0; nPort < MIDI_PORT_COUNT; ++nPort) {
+		// Set all JackIDs:
 		pDescriptorOut->MS_PORTS[nPort].MIDI_IN_JACK_EMB.bJackId += nPort;
 		pDescriptorOut->MS_PORTS[nPort].MIDI_IN_JACK_EXT.bJackId += nPort;
 		pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_EMB.bJackId += nPort;
 		pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_EXT.bJackId += nPort;
 
+		// Tie output jacks to the element:
 		pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_EMB.baSource[0].baSourceId = pDescriptorOut->MIDIElementDescriptor.bElementID;
 		pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_EMB.baSource[0].baSourcePin = nPort+1;
 		pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_EXT.baSource[0].baSourceId = pDescriptorOut->MIDIElementDescriptor.bElementID;
-		pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_EXT.baSource[0].baSourcePin = nPort+1;
+		pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_EXT.baSource[0].baSourcePin = MIDI_PORT_COUNT+nPort+1;
 
+		// Tie input jacks to the element:
 		pDescriptorOut->MIDIElementDescriptor.baSource[nPort].baSourceId = pDescriptorOut->MS_PORTS[nPort].MIDI_IN_JACK_EMB.bJackId;
 		pDescriptorOut->MIDIElementDescriptor.baSource[nPort].baSourcePin = 1;
+		pDescriptorOut->MIDIElementDescriptor.baSource[MIDI_PORT_COUNT+nPort].baSourceId = pDescriptorOut->MS_PORTS[nPort].MIDI_IN_JACK_EXT.bJackId;
+		pDescriptorOut->MIDIElementDescriptor.baSource[MIDI_PORT_COUNT+nPort].baSourcePin = 1;
 
+		// Tie embedded jacks to the endpoints (most important piece of this!):
 		pDescriptorOut->MS_CS_DataOutEndpoint.baAssocJackID[nPort] = pDescriptorOut->MS_PORTS[nPort].MIDI_IN_JACK_EMB.bJackId;
 		pDescriptorOut->MS_CS_DataInEndpoint.baAssocJackID[nPort] = pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_EMB.bJackId;
 	}
