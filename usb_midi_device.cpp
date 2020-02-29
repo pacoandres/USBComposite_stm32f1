@@ -65,37 +65,7 @@ extern "C" {
  */
 
 typedef struct {
-	/* Control Interface */
-	usb_descriptor_interface           MS_Interface = {
-		.bLength            = sizeof(usb_descriptor_interface),
-		.bDescriptorType    = USB_DESCRIPTOR_TYPE_INTERFACE,
-		.bInterfaceNumber   = 0x01, // PATCH
-		.bAlternateSetting  = 0x00,
-		.bNumEndpoints      = 0x02,
-		.bInterfaceClass    = USB_INTERFACE_CLASS_AUDIO,
-		.bInterfaceSubClass = USB_INTERFACE_MIDISTREAMING,
-		.bInterfaceProtocol = 0x00,
-		.iInterface         = 0, // was 0x04
-	};
-
-	MS_CS_INTERFACE_DESCRIPTOR         MS_CS_Interface = {
-		.bLength            = sizeof(MS_CS_INTERFACE_DESCRIPTOR),
-		.bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
-		.SubType            = MS_HEADER,
-		.bcdADC             = 0x0100,
-		.wTotalLength       = sizeof(MS_CS_INTERFACE_DESCRIPTOR)
-							   +sizeof(MIDI_IN_JACK_DESCRIPTOR)
-							   +sizeof(MIDI_IN_JACK_DESCRIPTOR)
-							   +MIDI_OUT_JACK_DESCRIPTOR_SIZE(1)
-							   +MIDI_OUT_JACK_DESCRIPTOR_SIZE(1)
-							   +sizeof(usb_descriptor_endpoint)
-							   +MS_CS_BULK_ENDPOINT_DESCRIPTOR_SIZE(1)
-							   +sizeof(usb_descriptor_endpoint)
-							   +MS_CS_BULK_ENDPOINT_DESCRIPTOR_SIZE(1)
-								 /* 0x41-4 */,
-	};
-
-	MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_1 = {
+	MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_EMB = {
 			.bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
 			.bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
 			.SubType            = MIDI_IN_JACK,
@@ -104,83 +74,48 @@ typedef struct {
 			.iJack              = 0x00,
 		};
 
-	MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_2 = {
+	MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_EXT = {
 			.bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
 			.bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
 			.SubType            = MIDI_IN_JACK,
 			.bJackType          = MIDI_JACK_EXTERNAL,
-			.bJackId            = 0x02,			// Patch
+			.bJackId            = 0x09,			// Patch
 			.iJack              = 0x00,
 		};
 
-	MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_3 = {
+	MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_EMB = {
 			.bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
 			.bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
 			.SubType            = MIDI_OUT_JACK,
 			.bJackType          = MIDI_JACK_EMBEDDED,
-			.bJackId            = 0x03,			// Patch
+			.bJackId            = 0x11,			// Patch
 			.bNrInputPins       = 0x01,
 			.baSource = {
 				{
-					.baSourceId     = 0x02,		// Patch
+					.baSourceId     = 0x21,		// Patch
 					.baSourcePin    = 0x01		// Patch
 				}
 			},
 			.iJack              = 0x00,
 		};
 
-	MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_4 = {
+	MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_EXT = {
 			.bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
 			.bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
 			.SubType            = MIDI_OUT_JACK,
 			.bJackType          = MIDI_JACK_EXTERNAL,
-			.bJackId            = 0x04,
+			.bJackId            = 0x19,
 			.bNrInputPins       = 0x01,
 			.baSource = {
 				{
-					.baSourceId     = 0x01,		// Patch
+					.baSourceId     = 0x21,		// Patch
 					.baSourcePin    = 0x01		// Patch
 				}
 			},
 			.iJack              = 0x00,
 		};
 
-	usb_descriptor_endpoint            DataOutEndpoint = {
-			.bLength            = sizeof(usb_descriptor_endpoint),
-			.bDescriptorType    = USB_DESCRIPTOR_TYPE_ENDPOINT,
-			.bEndpointAddress   = (USB_DESCRIPTOR_ENDPOINT_OUT |
-								 0), // PATCH: USB_MIDI_RX_ENDP
-			.bmAttributes       = USB_EP_TYPE_BULK,
-			.wMaxPacketSize     = 64, // PATCH
-			.bInterval          = 0x00,
-		};
-
-	MS_CS_BULK_ENDPOINT_DESCRIPTOR(1)  MS_CS_DataOutEndpoint = {
-			.bLength              = MS_CS_BULK_ENDPOINT_DESCRIPTOR_SIZE(1),
-			.bDescriptorType      = USB_DESCRIPTOR_TYPE_CS_ENDPOINT,
-			.SubType              = 0x01,
-			.bNumEmbMIDIJack      = 0x01,
-			.baAssocJackID        = {0x01},		// Patch
-		  };
-
-	usb_descriptor_endpoint            DataInEndpoint = {
-			.bLength          = sizeof(usb_descriptor_endpoint),
-			.bDescriptorType  = USB_DESCRIPTOR_TYPE_ENDPOINT,
-			.bEndpointAddress = (USB_DESCRIPTOR_ENDPOINT_IN | 0), // PATCH: USB_MIDI_TX_ENDP
-			.bmAttributes     = USB_EP_TYPE_BULK,
-			.wMaxPacketSize   = 64, // PATCH
-			.bInterval        = 0x00,
-		};
-
-	MS_CS_BULK_ENDPOINT_DESCRIPTOR(1)  MS_CS_DataInEndpoint = {
-			.bLength              = MS_CS_BULK_ENDPOINT_DESCRIPTOR_SIZE(1),
-			.bDescriptorType      = USB_DESCRIPTOR_TYPE_CS_ENDPOINT,
-			.SubType              = 0x01,
-			.bNumEmbMIDIJack      = 0x01,
-			.baAssocJackID        = {0x03},		// Patch
-		  };
-
-} __packed midi_port_descriptor;
+} __packed midi_jack_descriptor;
 
 typedef struct {
 	/* .Config_Header = {
@@ -209,18 +144,99 @@ typedef struct {
 		.iInterface         = 0x00,
 	};
 
-	AC_CS_INTERFACE_DESCRIPTOR(CMIDIDevices::MIDI_PORT_COUNT)      AC_CS_Interface = {
-		.bLength            = AC_CS_INTERFACE_DESCRIPTOR_SIZE(CMIDIDevices::MIDI_PORT_COUNT),
+	AC_CS_INTERFACE_DESCRIPTOR(1)      AC_CS_Interface = {
+		.bLength            = AC_CS_INTERFACE_DESCRIPTOR_SIZE(1),
 		.bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
 		.SubType            = 0x01,
 		.bcdADC             = 0x0100,
-		.wTotalLength       = AC_CS_INTERFACE_DESCRIPTOR_SIZE(CMIDIDevices::MIDI_PORT_COUNT),
-		.bInCollection      = CMIDIDevices::MIDI_PORT_COUNT,
-		.baInterfaceNr      = { },		// Patch
+		.wTotalLength       = AC_CS_INTERFACE_DESCRIPTOR_SIZE(1),
+		.bInCollection      = 0x01,
+		.baInterfaceNr      = { 0x01 },	// Patch
 	};
 
 	/* Control Interface */
-	midi_port_descriptor               MS_PORTS[CMIDIDevices::MIDI_PORT_COUNT];
+	usb_descriptor_interface           MS_Interface = {
+		.bLength            = sizeof(usb_descriptor_interface),
+		.bDescriptorType    = USB_DESCRIPTOR_TYPE_INTERFACE,
+		.bInterfaceNumber   = 0x01, // PATCH
+		.bAlternateSetting  = 0x00,
+		.bNumEndpoints      = 0x02,
+		.bInterfaceClass    = USB_INTERFACE_CLASS_AUDIO,
+		.bInterfaceSubClass = USB_INTERFACE_MIDISTREAMING,
+		.bInterfaceProtocol = 0x00,
+		.iInterface         = 0, // was 0x04
+	};
+
+	MS_CS_INTERFACE_DESCRIPTOR         MS_CS_Interface = {
+		.bLength            = sizeof(MS_CS_INTERFACE_DESCRIPTOR),
+		.bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
+		.SubType            = MS_HEADER,
+		.bcdADC             = 0x0100,
+		.wTotalLength       = sizeof(MS_CS_INTERFACE_DESCRIPTOR)
+							   +MIDI_ELEMENT_DESCRIPTOR_SIZE(CMIDIDevices::MIDI_PORT_COUNT, 2)
+							   +(sizeof(MIDI_IN_JACK_DESCRIPTOR)
+								+sizeof(MIDI_IN_JACK_DESCRIPTOR)
+								+MIDI_OUT_JACK_DESCRIPTOR_SIZE(1)
+								+MIDI_OUT_JACK_DESCRIPTOR_SIZE(1))*CMIDIDevices::MIDI_PORT_COUNT
+							   +sizeof(usb_descriptor_endpoint)
+							   +MS_CS_BULK_ENDPOINT_DESCRIPTOR_SIZE(CMIDIDevices::MIDI_PORT_COUNT)
+							   +sizeof(usb_descriptor_endpoint)
+							   +MS_CS_BULK_ENDPOINT_DESCRIPTOR_SIZE(CMIDIDevices::MIDI_PORT_COUNT)
+								 /* 0x41-4 */,
+	};
+
+	MIDI_ELEMENT_DESCRIPTOR(CMIDIDevices::MIDI_PORT_COUNT, 2)	MIDIElementDescriptor = {
+		.bLength            = MIDI_ELEMENT_DESCRIPTOR_SIZE(CMIDIDevices::MIDI_PORT_COUNT, 2),
+		.bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
+		.SubType            = MIDI_ELEMENT,
+		.bElementID         = 0x21,
+		.bNrInputPins       = CMIDIDevices::MIDI_PORT_COUNT,
+		.baSource           = { },		// Patch
+		.bNrOutputPins      = CMIDIDevices::MIDI_PORT_COUNT,
+		.bInTerminalLink    = 0,
+		.bOutTerminalLink   = 0,
+		.bElCapsSize        = 2,
+		.bmElementCaps      = { },		// Patch
+		.iElement           = 0,
+	};
+
+	// Port Jacks:
+	midi_jack_descriptor               MS_PORTS[CMIDIDevices::MIDI_PORT_COUNT];
+
+	usb_descriptor_endpoint            DataOutEndpoint = {
+			.bLength            = sizeof(usb_descriptor_endpoint),
+			.bDescriptorType    = USB_DESCRIPTOR_TYPE_ENDPOINT,
+			.bEndpointAddress   = (USB_DESCRIPTOR_ENDPOINT_OUT |
+								 0), // PATCH: USB_MIDI_RX_ENDP
+			.bmAttributes       = USB_EP_TYPE_BULK,
+			.wMaxPacketSize     = 64, // PATCH
+			.bInterval          = 0x00,
+		};
+
+	MS_CS_BULK_ENDPOINT_DESCRIPTOR(CMIDIDevices::MIDI_PORT_COUNT)  MS_CS_DataOutEndpoint = {
+			.bLength              = MS_CS_BULK_ENDPOINT_DESCRIPTOR_SIZE(CMIDIDevices::MIDI_PORT_COUNT),
+			.bDescriptorType      = USB_DESCRIPTOR_TYPE_CS_ENDPOINT,
+			.SubType              = 0x01,
+			.bNumEmbMIDIJack      = CMIDIDevices::MIDI_PORT_COUNT,
+			.baAssocJackID        = { },		// Patch
+		  };
+
+	usb_descriptor_endpoint            DataInEndpoint = {
+			.bLength          = sizeof(usb_descriptor_endpoint),
+			.bDescriptorType  = USB_DESCRIPTOR_TYPE_ENDPOINT,
+			.bEndpointAddress = (USB_DESCRIPTOR_ENDPOINT_IN | 0), // PATCH: USB_MIDI_TX_ENDP
+			.bmAttributes     = USB_EP_TYPE_BULK,
+			.wMaxPacketSize   = 64, // PATCH
+			.bInterval        = 0x00,
+		};
+
+	MS_CS_BULK_ENDPOINT_DESCRIPTOR(CMIDIDevices::MIDI_PORT_COUNT)  MS_CS_DataInEndpoint = {
+			.bLength              = MS_CS_BULK_ENDPOINT_DESCRIPTOR_SIZE(CMIDIDevices::MIDI_PORT_COUNT),
+			.bDescriptorType      = USB_DESCRIPTOR_TYPE_CS_ENDPOINT,
+			.SubType              = 0x01,
+			.bNumEmbMIDIJack      = CMIDIDevices::MIDI_PORT_COUNT,
+			.baAssocJackID        = { },		// Patch
+		  };
 } __packed usb_descriptor_config;
 
 static const usb_descriptor_config usbMIDIDescriptor_Config;
@@ -236,36 +252,42 @@ void CMIDIDevices::getMIDIPartDescriptor(uint8* out)
 	memcpy(pDescriptorOut, &usbMIDIDescriptor_Config, sizeof(usbMIDIDescriptor_Config));
 
 	// patch to reflect where the part goes in the descriptor
+	USBEndpointInfo *pRxEndpoint = &m_midiEndpoints[MIDI_ENDPOINT_OFFSET_RX];
+	USBEndpointInfo *pTxEndpoint = &m_midiEndpoints[MIDI_ENDPOINT_OFFSET_TX];
+
 	pDescriptorOut->AC_Interface.bInterfaceNumber += usbMIDIPart.startInterface;
+	pDescriptorOut->MIDIElementDescriptor.bmElementCaps[0] = m_nElCapsB0;
+	pDescriptorOut->MIDIElementDescriptor.bmElementCaps[1] = m_nElCapsB1;
+
+	pDescriptorOut->MS_Interface.bInterfaceNumber += usbMIDIPart.startInterface;
+	pDescriptorOut->AC_CS_Interface.baInterfaceNr[0] = pDescriptorOut->MS_Interface.bInterfaceNumber;
+
+	pDescriptorOut->DataOutEndpoint.bEndpointAddress += pRxEndpoint->address;
+	pDescriptorOut->DataOutEndpoint.wMaxPacketSize = static_cast<uint16_t>(usb_midi_rxEPSize());
+	pDescriptorOut->DataInEndpoint.bEndpointAddress += pTxEndpoint->address;
+	pDescriptorOut->DataInEndpoint.wMaxPacketSize = static_cast<uint16_t>(usb_midi_txEPSize());
+
 	for (int nPort = 0; nPort < MIDI_PORT_COUNT; ++nPort) {
-		USBEndpointInfo *pRxEndpoint = &m_midiEndpoints[MIDI_ENDPOINT_OFFSET_RX];
-		USBEndpointInfo *pTxEndpoint = &m_midiEndpoints[MIDI_ENDPOINT_OFFSET_TX];
+		pDescriptorOut->MS_PORTS[nPort].MIDI_IN_JACK_EMB.bJackId += nPort;
+		pDescriptorOut->MS_PORTS[nPort].MIDI_IN_JACK_EXT.bJackId += nPort;
+		pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_EMB.bJackId += nPort;
+		pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_EXT.bJackId += nPort;
 
-		pDescriptorOut->MS_PORTS[nPort].MS_Interface.bInterfaceNumber += nPort + usbMIDIPart.startInterface;
-		pDescriptorOut->AC_CS_Interface.baInterfaceNr[nPort] = pDescriptorOut->MS_PORTS[nPort].MS_Interface.bInterfaceNumber;
+		pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_EMB.baSource[0].baSourceId = pDescriptorOut->MIDIElementDescriptor.bElementID;
+		pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_EMB.baSource[0].baSourcePin = nPort+1;
+		pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_EXT.baSource[0].baSourceId = pDescriptorOut->MIDIElementDescriptor.bElementID;
+		pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_EXT.baSource[0].baSourcePin = nPort+1;
 
-		pDescriptorOut->MS_PORTS[nPort].DataOutEndpoint.bEndpointAddress += pRxEndpoint->address;
-		pDescriptorOut->MS_PORTS[nPort].DataOutEndpoint.wMaxPacketSize = static_cast<uint16_t>(usb_midi_rxEPSize());
-		pDescriptorOut->MS_PORTS[nPort].DataInEndpoint.bEndpointAddress += pTxEndpoint->address;
-		pDescriptorOut->MS_PORTS[nPort].DataInEndpoint.wMaxPacketSize = static_cast<uint16_t>(usb_midi_txEPSize());
+		pDescriptorOut->MIDIElementDescriptor.baSource[nPort].baSourceId = pDescriptorOut->MS_PORTS[nPort].MIDI_IN_JACK_EMB.bJackId;
+		pDescriptorOut->MIDIElementDescriptor.baSource[nPort].baSourcePin = 1;
 
-		pDescriptorOut->MS_PORTS[nPort].MIDI_IN_JACK_1.bJackId += (nPort*4);
-		pDescriptorOut->MS_PORTS[nPort].MIDI_IN_JACK_2.bJackId += (nPort*4);
-		pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_3.bJackId += (nPort*4);
-		pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_4.bJackId += (nPort*4);
-
-		pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_3.baSource[0].baSourceId += (nPort*4);
-		pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_3.baSource[0].baSourcePin += nPort;
-		pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_4.baSource[0].baSourceId += (nPort*4);
-		pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_4.baSource[0].baSourcePin += nPort;
-
-		pDescriptorOut->MS_PORTS[nPort].MS_CS_DataOutEndpoint.baAssocJackID[0] += (nPort*4);
-		pDescriptorOut->MS_PORTS[nPort].MS_CS_DataInEndpoint.baAssocJackID[0] += (nPort*4);
+		pDescriptorOut->MS_CS_DataOutEndpoint.baAssocJackID[nPort] = pDescriptorOut->MS_PORTS[nPort].MIDI_IN_JACK_EMB.bJackId;
+		pDescriptorOut->MS_CS_DataInEndpoint.baAssocJackID[nPort] = pDescriptorOut->MS_PORTS[nPort].MIDI_OUT_JACK_EMB.bJackId;
 	}
 }
 
 USBCompositePart CMIDIDevices::usbMIDIPart = {
-	.numInterfaces = 1+CMIDIDevices::MIDI_PORT_COUNT,
+	.numInterfaces = 2,
 	.numEndpoints = sizeof(m_midiEndpoints)/sizeof(*m_midiEndpoints),
 	.startInterface = 0,
 	.descriptorSize = sizeof(usbMIDIDescriptor_Config),
@@ -297,6 +319,9 @@ volatile uint32_t CMIDIDevices::n_unread_packets = 0;
 
 uint32_t CMIDIDevices::m_txEPSize = 64;
 uint32_t CMIDIDevices::m_rxEPSize = 64;
+
+uint8_t CMIDIDevices::m_nElCapsB0 = EL_CAPS_B0_XG;		// Default as per MIDI spec, user override via setMIDICapabilities
+uint8_t CMIDIDevices::m_nElCapsB1 = 0;
 
 USBEndpointInfo CMIDIDevices::m_midiEndpoints[2] = { };
 
@@ -369,6 +394,12 @@ void CMIDIDevices::usb_midi_setRXEPSize(uint32_t size)
 		size = 64;
 	m_midiEndpoints[0].pmaSize = size;
 	m_rxEPSize = size;
+}
+
+void CMIDIDevices::setMIDICapabilities(uint8_t nElCapsB0, uint8_t nElCapsB1)
+{
+	m_nElCapsB0 = nElCapsB0;
+	m_nElCapsB1 = nElCapsB1;
 }
 
 // ------------------------------------------------------------------------------------------------

@@ -80,6 +80,19 @@ typedef union {
 #define MIDI_JACK_EMBEDDED                0x01
 #define MIDI_JACK_EXTERNAL                0x02
 
+/* Element Capabilities Bitmask flags */
+#define EL_CAPS_B0_CUSTOM                 0x01
+#define EL_CAPS_B0_MIDI_CLOCK             0x02
+#define EL_CAPS_B0_MTC                    0x04
+#define EL_CAPS_B0_MMC                    0x08
+#define EL_CAPS_B0_GM1                    0x10
+#define EL_CAPS_B0_GM2                    0x20
+#define EL_CAPS_B0_GS                     0x40
+#define EL_CAPS_B0_XG                     0x80
+#define EL_CAPS_B1_EFX                    0x01
+#define EL_CAPS_B1_MIDI_Patch_Bay         0x02
+#define EL_CAPS_B1_DLS1                   0x04
+#define EL_CAPS_B1_DLS2                   0x08
 
 #define AC_CS_INTERFACE_DESCRIPTOR_SIZE(DataSize) (8 + DataSize)
 #define AC_CS_INTERFACE_DESCRIPTOR(DataSize)        \
@@ -201,6 +214,7 @@ public:
 	CMIDIDevices & operator=(CMIDIDevices &&) = delete;			// No Move Assigment
 
 	static USBCompositePart *getUSBMIDIPart() { return &usbMIDIPart; }
+	static void setMIDICapabilities(uint8_t nElCapsB0, uint8_t nElCapsB1);
 
 	static void usb_midi_setTXEPSize(uint32_t size);
 	static uint32_t usb_midi_txEPSize() { return m_txEPSize; }
@@ -245,6 +259,9 @@ private:
 
 	static uint32_t m_txEPSize;
 	static uint32_t m_rxEPSize;
+
+	static uint8_t m_nElCapsB0;
+	static uint8_t m_nElCapsB1;
 
 	static USBEndpointInfo m_midiEndpoints[2];
 
