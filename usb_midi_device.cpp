@@ -126,19 +126,6 @@ typedef struct {
 } __packed midi_jack_descriptor;
 
 typedef struct {
-	/* .Config_Header = {
-		.bLength              = sizeof(usb_descriptor_config_header),
-		.bDescriptorType      = USB_DESCRIPTOR_TYPE_CONFIGURATION,
-		.wTotalLength         = sizeof(usb_descriptor_config),
-		.bNumInterfaces       = 0x02,
-		.bConfigurationValue  = 0x01,
-		.iConfiguration       = 0x00,
-		.bmAttributes         = (USB_CONFIG_ATTR_BUSPOWERED |
-								 USB_CONFIG_ATTR_SELF_POWERED),
-		.bMaxPower            = MAX_POWER,
-	}, */
-//    usb_descriptor_config_header       Config_Header;
-
 	/* Control Interface */
 	usb_descriptor_interface           AC_Interface = {
 		.bLength            = sizeof(usb_descriptor_interface),

@@ -170,30 +170,6 @@ typedef struct {
 	  uint8  baAssocJackID[DataSize];               \
   } __packed
 
-/*
- * Endpoint configuration
- */
-
-#ifndef __cplusplus
-#define USB_MIDI_DECLARE_DEV_DESC(vid, pid)                           \
-  {                                                                     \
-	  .bLength            = sizeof(usb_descriptor_device),              \
-	  .bDescriptorType    = USB_DESCRIPTOR_TYPE_DEVICE,                 \
-	  .bcdUSB             = 0x0110,                                     \
-	  .bDeviceClass       = USB_DEVICE_CLASS_UNDEFINED,                 \
-	  .bDeviceSubClass    = USB_DEVICE_SUBCLASS_UNDEFINED,              \
-	  .bDeviceProtocol    = 0x00,                                       \
-	  .bMaxPacketSize0    = 0x40,                                       \
-	  .idVendor           = vid,                                        \
-	  .idProduct          = pid,                                        \
-	  .bcdDevice          = 0x0200,                                     \
-	  .iManufacturer      = 0x01,                                       \
-	  .iProduct           = 0x02,                                       \
-	  .iSerialNumber      = 0x00,                                       \
-	  .bNumConfigurations = 0x01,                                       \
- }
-#endif
-
 #ifdef __cplusplus
 }
 #endif
