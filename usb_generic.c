@@ -89,8 +89,6 @@ uint16 epTypes[4] = {
     USB_EP_EP_TYPE_INTERRUPT
 };
 
-#define LEAFLABS_ID_VENDOR                0x1EAF
-#define MAPLE_ID_PRODUCT                  0x0024 // was 0x0024
 #define USB_DEVICE_CLASS              	  0x00
 #define USB_DEVICE_SUBCLASS	           	  0x00
 #define DEVICE_PROTOCOL					  0x01
@@ -106,9 +104,9 @@ static usb_descriptor_device usbGenericDescriptor_Device =
       .bDeviceSubClass    = USB_DEVICE_SUBCLASS,                    	
       .bDeviceProtocol    = DEVICE_PROTOCOL,                            
       .bMaxPacketSize0    = 0x40,                                       
-      .idVendor           = LEAFLABS_ID_VENDOR,                         
-      .idProduct          = MAPLE_ID_PRODUCT,                           
-      .bcdDevice          = 0x0200,                                     
+      .idVendor           = DEFAULT_VENDOR_ID,                         
+      .idProduct          = DEFAULT_PRODUCT_ID,                           
+      .bcdDevice          = DEFAULT_BCD_DEVICE,                                     
       .iManufacturer      = 0x01,                                       
       .iProduct           = 0x02,                                       
       .iSerialNumber      = 0x00,                                       
@@ -318,17 +316,22 @@ uint8 usb_generic_set_parts(USBCompositePart** _parts, unsigned _numParts) {
     return 1;
 }
 
-void usb_generic_set_info(uint16 idVendor, uint16 idProduct, const char* iManufacturer, const char* iProduct, const char* iSerialNumber) {
+void usb_generic_set_info(uint16 idVendor, uint16 idProduct, uint16 bcdDevice, const char* iManufacturer, const char* iProduct, const char* iSerialNumber) {
     if (idVendor != 0)
         usbGenericDescriptor_Device.idVendor = idVendor;
     else
-        usbGenericDescriptor_Device.idVendor = LEAFLABS_ID_VENDOR;
+        usbGenericDescriptor_Device.idVendor = DEFAULT_VENDOR_ID;
      
     if (idProduct != 0)
         usbGenericDescriptor_Device.idProduct = idProduct;
     else
-        usbGenericDescriptor_Device.idProduct = MAPLE_ID_PRODUCT;
-    
+        usbGenericDescriptor_Device.idProduct = DEFAULT_PRODUCT_ID;
+
+    if (bcdDevice != 0)
+        usbGenericDescriptor_Device.bcdDevice = bcdDevice;
+    else
+        usbGenericDescriptor_Device.bcdDevice = DEFAULT_BCD_DEVICE;
+
     if (iManufacturer == NULL) {
         iManufacturer = DEFAULT_MANUFACTURER;
     }

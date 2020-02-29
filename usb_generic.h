@@ -10,6 +10,10 @@ typedef unsigned char u8;
 #include "usb_lib_globals.h"
 #include "usb_reg_map.h"
 
+#define DEFAULT_VENDOR_ID  0x1EAF
+#define DEFAULT_PRODUCT_ID 0x0024
+#define DEFAULT_BCD_DEVICE 0x0100
+
 #define USB_CONTROL_DONE 1
 
 // NOTE: MAX_USB_DESCRIPTOR_DATA_SIZE needs to be sufficiently large
@@ -139,7 +143,7 @@ static inline void usb_generic_set_tx(USBEndpointInfo* ep, uint32 length) {
 
 uint32 usb_generic_send_from_circular_buffer_double_buffered(USBEndpointInfo* ep, volatile uint8* buf, uint32 circularBufferSize, uint32 amount, volatile uint32* tailP);
 void usb_generic_set_disconnect_delay(uint32 delay);
-void usb_generic_set_info(uint16 idVendor, uint16 idProduct, const char* iManufacturer, const char* iProduct, const char* iSerialNumber);
+void usb_generic_set_info(uint16 idVendor, uint16 idProduct, uint16 bcdDevice, const char* iManufacturer, const char* iProduct, const char* iSerialNumber);
 uint8 usb_generic_set_parts(USBCompositePart** _parts, unsigned _numParts);
 void usb_generic_control_rx_setup(volatile void* buffer, uint16 length, volatile uint8* done);
 void usb_generic_control_tx_setup(volatile void* buffer, uint16 length, volatile uint8* done);

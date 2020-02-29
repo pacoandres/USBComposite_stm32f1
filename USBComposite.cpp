@@ -3,9 +3,6 @@
 #undef false
 #include <Arduino.h>
 
-#define DEFAULT_VENDOR_ID  0x1EAF
-#define DEFAULT_PRODUCT_ID 0x0024
-
 static char* putSerialNumber(char* out, int nibbles, uint32 id) {
     for (int i=0; i<nibbles; i++, id >>= 4) {
         uint8 nibble = id & 0xF;
@@ -35,15 +32,6 @@ char* getDeviceIDString() {
     return string;
 }
 
-USBCompositeDevice::USBCompositeDevice(void) {
-        vendorId = 0;
-        productId = 0;
-        numParts = 0;
-        setManufacturerString(NULL);
-        setProductString(NULL);
-        setSerialString(NULL);
-}
-
 void USBCompositeDevice::setVendorId(uint16 _vendorId) {
     if (_vendorId != 0)
         vendorId = _vendorId;
@@ -56,6 +44,14 @@ void USBCompositeDevice::setProductId(uint16 _productId) {
         productId = _productId;
     else
         productId = DEFAULT_PRODUCT_ID;
+}
+
+void USBCompositeDevice::setBCDDevice(uint16 nBCDDevice)
+{
+    if (nBCDDevice != 0)
+        bcdDevice = nBCDDevice;
+    else
+        bcdDevice = DEFAULT_BCD_DEVICE;
 }
 
 void USBCompositeDevice::setManufacturerString(const char* s) {
@@ -77,7 +73,7 @@ bool USBCompositeDevice::begin() {
 		if (init[i] != NULL && !init[i](plugin[i]))
 			return false;
 	}
-	usb_generic_set_info(vendorId, productId, iManufacturer, iProduct, iSerialNumber);
+	usb_generic_set_info(vendorId, productId, bcdDevice, iManufacturer, iProduct, iSerialNumber);
     if (! usb_generic_set_parts(parts, numParts))
         return false;
     usb_generic_enable();
