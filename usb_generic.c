@@ -122,7 +122,9 @@ typedef struct {
 
 static usb_descriptor_config usbConfig;
 
-#define MAX_POWER (100 >> 1)
+#ifndef USB_MAX_POWER
+#define USB_MAX_POWER (100)
+#endif
 
 static const usb_descriptor_config_header Base_Header = {
         .bLength              = sizeof(usb_descriptor_config_header),
@@ -133,7 +135,7 @@ static const usb_descriptor_config_header Base_Header = {
         .iConfiguration       = 0x00,
         .bmAttributes         = (USB_CONFIG_ATTR_BUSPOWERED |
                                  USB_CONFIG_ATTR_SELF_POWERED),
-        .bMaxPower            = MAX_POWER,
+        .bMaxPower            = (USB_MAX_POWER >> 1),
 };
 
 static ONE_DESCRIPTOR Device_Descriptor = {
