@@ -261,6 +261,8 @@ uint8 usb_generic_set_parts(USBCompositePart** _parts, unsigned _numParts) {
 		}
         USBEndpointInfo* ep = part->endpoints;
         for (unsigned j = 0 ; j < part->numEndpoints ; j++) {
+            if (ep[j].align) 
+                minimum_address = maxAddress + 1;
             int8 address = allocate_endpoint_address(i, j);
             if (address < 0)
                 return 0;
@@ -519,8 +521,9 @@ static uint8* control_data_tx(uint16 length) {
         return NULL;
     }
 
-    if (control_tx_done && pInformation->USBwLengths.w <= wOffset + pInformation->Ctrl_Info.PacketSize)
+    if (control_tx_done && pInformation->USBwLengths.w <= wOffset + pInformation->Ctrl_Info.PacketSize) {
         *control_tx_done = USB_CONTROL_DONE; // this may be a bit premature, but it's our best try
+    }
 
     if (control_tx_buffer == NULL)
         return NULL;
@@ -605,8 +608,6 @@ void usb_generic_control_tx_chunk_setup(struct usb_chunk* chunk) {
     pInformation->Ctrl_Info.Usb_wOffset = 0;
     control_data_chunk_tx(0);
 }
-
-
 
 static uint8* control_data_rx(uint16 length) {
     unsigned wOffset = pInformation->Ctrl_Info.Usb_wOffset;

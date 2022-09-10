@@ -332,11 +332,13 @@ CMIDIDevices::CMIDIDevices()
 	m_midiEndpoints[MIDI_ENDPOINT_OFFSET_RX].pmaSize = 64;		// patch
 	m_midiEndpoints[MIDI_ENDPOINT_OFFSET_RX].type = USB_GENERIC_ENDPOINT_TYPE_BULK;
 	m_midiEndpoints[MIDI_ENDPOINT_OFFSET_RX].tx = 0;
+	m_midiEndpoints[MIDI_ENDPOINT_OFFSET_RX].align = 1;
 
 	m_midiEndpoints[MIDI_ENDPOINT_OFFSET_TX].callback = &midiDataTxCb;
 	m_midiEndpoints[MIDI_ENDPOINT_OFFSET_TX].pmaSize = 64;		// patch
 	m_midiEndpoints[MIDI_ENDPOINT_OFFSET_TX].type = USB_GENERIC_ENDPOINT_TYPE_BULK;
 	m_midiEndpoints[MIDI_ENDPOINT_OFFSET_TX].tx = 1;
+	m_midiEndpoints[MIDI_ENDPOINT_OFFSET_TX].exclusive = 0;
 }
 
 // ------------------------------------------------------------------------------------------------

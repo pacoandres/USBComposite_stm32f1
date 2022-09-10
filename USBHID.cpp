@@ -130,7 +130,6 @@ void USBHID::setReportDescriptor(const HIDReportDescriptor* report) {
 }
 
 void USBHID::begin(const uint8_t* report_descriptor, uint16_t report_descriptor_length) {
-            
 	if (enabledHID)
 		return;
 	
@@ -176,6 +175,9 @@ void USBHID::end(void){
 }
 
 void USBHID::begin(USBCompositeSerial serial, const uint8_t* report_descriptor, uint16_t report_descriptor_length) {	
+	if (enabledHID)
+		return;
+	
 	USBComposite.clear();
 
 	setReportDescriptor(report_descriptor, report_descriptor_length);
@@ -187,13 +189,13 @@ void USBHID::begin(USBCompositeSerial serial, const uint8_t* report_descriptor, 
 }
 		
 void USBHID::begin(USBCompositeSerial serial, const HIDReportDescriptor* report) {
-    begin(serial, report->descriptor, report->length);
+    if (report == NULL)
+        begin(serial, NULL, 0);
+    else
+        begin(serial, report->descriptor, report->length);
 }
 
 void HIDReporter::sendReport() {
-//    while (usb_is_transmitting() != 0) {
-//    }
-
     unsigned toSend = bufferSize;
     uint8* b = reportBuffer;
     
@@ -203,10 +205,8 @@ void HIDReporter::sendReport() {
         b += delta;
     }
     
-//    while (usb_is_transmitting() != 0) {
-//    }
-
     /* flush out to avoid having the pc wait for more data */
+    /* TODO: remove? this does nothing right now! */
     usb_hid_tx(NULL, 0);
 }
 
@@ -245,6 +245,7 @@ void HIDReporter::registerProfile(bool always) {
         else {
             reportChunks[0].data = reportDescriptor.descriptor;
             reportChunks[0].dataLength = reportIDOffset;
+            reportID = reportDescriptor.descriptor[reportIDOffset];
             reportChunks[1].data = &(reportID);
             reportChunks[1].dataLength = 1;
             reportChunks[2].data = reportDescriptor.descriptor+reportIDOffset+1;
