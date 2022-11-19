@@ -245,7 +245,7 @@ private:
 
 private:
 	#ifndef NUM_MIDI_PORTS
-	#define NUM_MIDI_PORTS 1
+	#define NUM_MIDI_PORTS 2
 	#endif
 
 public:

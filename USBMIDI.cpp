@@ -283,7 +283,8 @@ static union EVENT_t outPacket; // since we only use one at a time no point in r
 // Send Midi NOTE OFF message to a given channel, with note 0-127 and velocity 0-127
 void USBMIDI::sendNoteOff(unsigned int channel, unsigned int note, unsigned int velocity)
 {
-    outPacket.p.cable=DEFAULT_MIDI_CABLE;
+    //outPacket.p.cable=DEFAULT_MIDI_CABLE;
+    outPacket.p.cable=1;
     outPacket.p.cin=CIN_NOTE_OFF;
     outPacket.p.midi0=MIDIv1_NOTE_OFF|(channel & 0x0f);
     outPacket.p.midi1=note;
@@ -295,7 +296,8 @@ void USBMIDI::sendNoteOff(unsigned int channel, unsigned int note, unsigned int 
 // Send Midi NOTE ON message to a given channel, with note 0-127 and velocity 0-127
 void USBMIDI::sendNoteOn(unsigned int channel, unsigned int note, unsigned int velocity)
 {
-    outPacket.p.cable=DEFAULT_MIDI_CABLE;
+    //outPacket.p.cable=DEFAULT_MIDI_CABLE;
+    outPacket.p.cable=1;
     outPacket.p.cin=CIN_NOTE_ON;
     outPacket.p.midi0=MIDIv1_NOTE_ON|(channel & 0x0f);
     outPacket.p.midi1=note;
